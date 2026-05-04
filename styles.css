@@ -136,6 +136,7 @@ body {
 .notes-box h3 {
   margin: 0 0 0.45rem;
   font-size: 0.98rem;
+  color: #1852b8;
 }
 
 .notes-box ul {
@@ -145,6 +146,11 @@ body {
 
 .notes-box li {
   margin-bottom: 0.25rem;
+  color: #1c4ca0;
+}
+
+.notes-box p {
+  color: #1c4ca0;
 }
 
 .locked-editor,
@@ -189,6 +195,18 @@ body {
   border-style: solid;
 }
 
+.editable-chip-number {
+  font-weight: 700;
+  box-shadow: 0 0 0 1px #ffd66d inset;
+}
+
+.editable-chip-text {
+  background: #e8f0ff;
+  border-color: #6f96e8;
+  color: #173f97;
+  font-weight: 600;
+}
+
 .full-editor {
   display: none;
   min-height: 500px;
@@ -221,14 +239,15 @@ button {
   padding: 0.55rem 0.95rem;
   border: 0;
   border-radius: 10px;
-  background: var(--accent);
+  background: linear-gradient(135deg, #2f6fed, #3d84ff);
   color: #fff;
   font-weight: 600;
   cursor: pointer;
+  box-shadow: 0 5px 14px rgba(47, 111, 237, 0.28);
 }
 
 button:hover {
-  background: var(--accent-hover);
+  background: linear-gradient(135deg, #265fcb, #3272dd);
 }
 
 .status-text {
@@ -248,7 +267,7 @@ button:hover {
 
 .html-frame {
   width: 100%;
-  min-height: 340px;
+  min-height: 520px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: #fff;

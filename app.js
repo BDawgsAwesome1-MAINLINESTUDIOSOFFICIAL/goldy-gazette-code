@@ -38,7 +38,7 @@ def draw_map(game_map, player_x, player_y):
         line = []
         for x in range(MAP_WIDTH):
             if x == player_x and y == player_y:
-                line.append("P")
+                line.append("@")
             else:
                 line.append(game_map[y][x])
         rows.append("".join(line))
@@ -82,8 +82,28 @@ def run_game():
     for turn in range(1, MAX_TURNS + 1):
         if player["health"] <= 0:
             break
-        move_x = random.choice([-1, 0, 1])
-        move_y = random.choice([-1, 0, 1])
+        action = input("What do you do next: scout, sprint, or rest? ").strip().lower()
+        if action in ("", "__stop__"):
+            print("No action entered. Add choices in the input box to continue.")
+            break
+        if action == "scout":
+            move_x = random.choice([-1, 0, 1])
+            move_y = random.choice([-1, 0, 1])
+        elif action == "sprint":
+            move_x = random.choice([-2, -1, 1, 2])
+            move_y = random.choice([-2, -1, 1, 2])
+            player["health"] -= 1
+            print("You sprinted and used 1 health.")
+        elif action == "rest":
+            move_x = 0
+            move_y = 0
+            player["health"] += 1
+            print("You rested and recovered 1 health.")
+        else:
+            print("Unknown action, so you scout this turn.")
+            move_x = random.choice([-1, 0, 1])
+            move_y = random.choice([-1, 0, 1])
+
         x = max(0, min(MAP_WIDTH - 1, x + move_x))
         y = max(0, min(MAP_HEIGHT - 1, y + move_y))
         player["steps"] += abs(move_x) + abs(move_y)
@@ -112,6 +132,9 @@ run_game()
         label: "Player Setup",
         note: "Name, starting health, and random seed.",
         value: `# === EDIT ZONE 1: player setup ===
+# Changing PLAYER_NAME updates the player shown in welcome and ending messages.
+# Changing PLAYER_HEALTH makes the game easier or harder (more/less survivability).
+# Changing SEED_VALUE changes the random event pattern so runs feel different.
 PLAYER_NAME = "Player One"
 PLAYER_HEALTH = 22
 SEED_VALUE = 9`,
@@ -121,6 +144,7 @@ SEED_VALUE = 9`,
         label: "Bonus Event Rule",
         note: "Special bonus event behavior.",
         value: `    # === EDIT ZONE 2: bonus event ===
+    # Changing this block controls bonus event chance and bonus coin amount.
     if roll <= 95:
         bonus = random.randint(4, 9)
         player["coins"] += bonus
@@ -131,6 +155,7 @@ SEED_VALUE = 9`,
         label: "Ending Message",
         note: "Final text printed after the game ends.",
         value: `# === EDIT ZONE 3: ending message ===
+# Changing this line updates the final message after the run.
 if __name__ == "__main__":
     print("Thanks for playing Adventure Coin Quest!")`,
       },
@@ -156,8 +181,12 @@ __UI_TEXT__
 
 const state = {
   energy: START_ENERGY,
+  shield: START_SHIELD,
   score: 0,
   level: 1,
+  heat: 0,
+  credits: 2,
+  distance: GOAL_DISTANCE,
   running: false,
   ticks: 0
 };
@@ -167,82 +196,159 @@ card.className = "dash-card";
 card.innerHTML = [
   "<h2>" + GAME_TITLE + "</h2>",
   "<p>" + GAME_DESC + "</p>",
-  "<p><strong id='stat-energy'>Energy: 0</strong> | <strong id='stat-score'>Score: 0</strong> | <strong id='stat-level'>Level: 1</strong></p>",
+  "<p><strong id='stat-energy'>Energy: 0</strong> | <strong id='stat-shield'>Shield: 0</strong> | <strong id='stat-distance'>Distance: 0</strong></p>",
+  "<p><strong id='stat-score'>Score: 0</strong> | <strong id='stat-level'>Level: 1</strong> | <strong id='stat-credits'>Credits: 0</strong></p>",
   "<div class='dash-buttons'>",
   "  <button id='btn-start'>Start</button>",
   "  <button id='btn-dash'>Dash</button>",
+  "  <button id='btn-shield'>Shield</button>",
+  "  <button id='btn-blast'>Blast</button>",
+  "  <button id='btn-scan'>Scan</button>",
   "  <button id='btn-rest'>Rest</button>",
   "</div>",
-  "<p id='dash-message'>Press Start to begin.</p>"
+  "<p id='dash-message'>Press Start to begin.</p>",
+  "<p id='dash-event'>Incoming meteor feed: offline</p>"
 ].join("");
 root.appendChild(card);
 
 const energyEl = document.getElementById("stat-energy");
+const shieldEl = document.getElementById("stat-shield");
+const distanceEl = document.getElementById("stat-distance");
 const scoreEl = document.getElementById("stat-score");
 const levelEl = document.getElementById("stat-level");
+const creditsEl = document.getElementById("stat-credits");
 const messageEl = document.getElementById("dash-message");
+const eventEl = document.getElementById("dash-event");
+
 const startBtn = document.getElementById("btn-start");
 const dashBtn = document.getElementById("btn-dash");
+const shieldBtn = document.getElementById("btn-shield");
+const blastBtn = document.getElementById("btn-blast");
+const scanBtn = document.getElementById("btn-scan");
 const restBtn = document.getElementById("btn-rest");
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
 
 function refreshStats() {
   energyEl.textContent = "Energy: " + state.energy;
+  shieldEl.textContent = "Shield: " + state.shield;
+  distanceEl.textContent = "Distance: " + state.distance;
   scoreEl.textContent = "Score: " + state.score;
   levelEl.textContent = "Level: " + state.level;
+  creditsEl.textContent = "Credits: " + state.credits;
 }
 
-function randomPenalty() {
-  return Math.floor(Math.random() * 3);
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function onDash() {
-  if (!state.running) {
-    messageEl.textContent = "Start the game first.";
-    return;
-  }
-  state.ticks += 1;
-  const cost = DASH_COST + randomPenalty();
-  state.energy -= cost;
-  if (state.energy <= 0) {
-    state.energy = 0;
-    state.running = false;
-    messageEl.textContent = "Out of energy. Game over.";
-    refreshStats();
-    return;
-  }
-  state.score += POINTS_PER_DASH;
+function incomingMeteor() {
+  const threat = randomInt(1, 6 + state.level);
+  const speed = randomInt(1, 4);
+  return { threat, speed };
+}
+
+function applyMeteorImpact(meteor) {
+  const blocked = clamp(state.shield, 0, meteor.threat);
+  const damage = Math.max(0, meteor.threat - blocked);
+  state.shield = Math.max(0, state.shield - 1);
+  state.energy -= damage;
+  state.distance = Math.max(0, state.distance - meteor.speed);
+  eventEl.textContent =
+    "Meteor threat " + meteor.threat + " / speed " + meteor.speed + " -> damage " + damage;
+}
+
+function finalizeTurn() {
+  state.heat = clamp(state.heat - 1, 0, 12);
+  state.score += 1;
   if (state.score % LEVEL_STEP === 0) {
     state.level += 1;
   }
-__POWERUP_RULE__
-  messageEl.textContent = "Nice dash! Keep moving.";
+  if (state.distance <= 0) {
+    state.running = false;
+    messageEl.textContent = "You reached the portal. Victory!";
+  } else if (state.energy <= 0) {
+    state.energy = 0;
+    state.running = false;
+    messageEl.textContent = "Systems failed. Mission over.";
+  }
   refreshStats();
 }
 
-function onRest() {
+function takeAction(action) {
   if (!state.running) {
-    messageEl.textContent = "Start the game first.";
+    messageEl.textContent = "Press Start to begin.";
     return;
   }
-  state.energy += 3;
-  state.score = Math.max(0, state.score - 1);
-  messageEl.textContent = "You rested and regained energy.";
-  refreshStats();
+
+  state.ticks += 1;
+  const meteor = incomingMeteor();
+
+  if (action === "dash") {
+    state.energy -= DASH_COST + randomInt(0, 2);
+    state.distance -= 3;
+    state.score += POINTS_PER_DASH;
+    state.heat += 2;
+    messageEl.textContent = "Dash engaged. You cut through the meteor field.";
+  } else if (action === "shield") {
+    state.energy -= SHIELD_COST;
+    state.shield += 3;
+    state.score += 2;
+    messageEl.textContent = "Shield boosted. You can absorb more impact.";
+  } else if (action === "blast") {
+    state.energy -= BLAST_COST;
+    const blastPower = 2 + state.level + (state.credits > 0 ? 1 : 0);
+    meteor.threat = Math.max(0, meteor.threat - blastPower);
+    state.score += 4;
+    if (state.credits > 0) {
+      state.credits -= 1;
+    }
+    messageEl.textContent = "Blast fired. You weakened the incoming meteor.";
+  } else if (action === "scan") {
+    state.energy -= SCAN_COST;
+    state.credits += 1;
+    state.score += 1;
+    messageEl.textContent =
+      "Scan complete. Next warning: high threat around level " + (state.level + 1) + ".";
+  } else if (action === "rest") {
+    state.energy += REST_GAIN;
+    state.shield += 1;
+    state.score = Math.max(0, state.score - 1);
+    messageEl.textContent = "Crew rested. Energy recovered.";
+  }
+
+  state.energy = clamp(state.energy, 0, MAX_ENERGY);
+  state.shield = clamp(state.shield, 0, MAX_SHIELD);
+
+__POWERUP_RULE__
+
+  applyMeteorImpact(meteor);
+  finalizeTurn();
 }
 
 function onStart() {
   state.energy = START_ENERGY;
+  state.shield = START_SHIELD;
   state.score = 0;
   state.level = 1;
+  state.heat = 0;
+  state.credits = 2;
+  state.distance = GOAL_DISTANCE;
   state.ticks = 0;
   state.running = true;
 __START_MESSAGE__
+  eventEl.textContent = "Incoming meteor feed: online";
   refreshStats();
 }
 
 startBtn.addEventListener("click", onStart);
-dashBtn.addEventListener("click", onDash);
-restBtn.addEventListener("click", onRest);
+dashBtn.addEventListener("click", () => takeAction("dash"));
+shieldBtn.addEventListener("click", () => takeAction("shield"));
+blastBtn.addEventListener("click", () => takeAction("blast"));
+scanBtn.addEventListener("click", () => takeAction("scan"));
+restBtn.addEventListener("click", () => takeAction("rest"));
 refreshStats();
 `,
     fields: [
@@ -251,10 +357,19 @@ refreshStats();
         label: "UI Text + Base Values",
         note: "Game title, intro, and base numbers.",
         value: `// === EDIT ZONE 1: title and values ===
+// Changing these values updates game text and base difficulty settings.
 const GAME_TITLE = "Meteor Dash Arena";
-const GAME_DESC = "Tap Dash to score points while managing your energy.";
-const START_ENERGY = 18;
+const GAME_DESC = "Use Dash, Shield, Blast, Scan, and Rest to survive meteor waves.";
+const START_ENERGY = 20;
+const START_SHIELD = 4;
+const MAX_ENERGY = 30;
+const MAX_SHIELD = 12;
+const GOAL_DISTANCE = 42;
 const DASH_COST = 2;
+const SHIELD_COST = 3;
+const BLAST_COST = 4;
+const SCAN_COST = 2;
+const REST_GAIN = 3;
 const POINTS_PER_DASH = 3;
 const LEVEL_STEP = 12;`,
       },
@@ -263,9 +378,11 @@ const LEVEL_STEP = 12;`,
         label: "Power-Up Rule",
         note: "Bonus behavior that runs after each dash.",
         value: `  // === EDIT ZONE 2: power-up rule ===
+  // Changing this block adjusts bonus score/energy behavior after dashes.
   if (state.ticks % 4 === 0) {
-    state.energy += 1;
-    state.score += 2;
+    state.energy += 2;
+    state.shield += 1;
+    state.score += 3;
   }`,
       },
       {
@@ -273,6 +390,7 @@ const LEVEL_STEP = 12;`,
         label: "Start Message",
         note: "Message shown when a new round starts.",
         value: `  // === EDIT ZONE 3: start message ===
+  // Changing this line updates the message shown when Start is pressed.
   messageEl.textContent = "Round started. Dash fast, rest smart.";`,
       },
     ],
@@ -451,6 +569,7 @@ __MESSAGE_RULE__
         label: "Theme Colors",
         note: "Page background, target color, and border style.",
         value: `        /* === EDIT ZONE 1: theme === */
+        /* Changing these variables updates the game's color style. */
         --bg-color: #dce9ff;
         --target-color: #2f6fed;
         --card-border: #86a9ef;`,
@@ -460,6 +579,7 @@ __MESSAGE_RULE__
         label: "Bonus Scoring Rule",
         note: "Extra points behavior on click streaks.",
         value: `        // === EDIT ZONE 2: bonus scoring ===
+        // Changing this block adjusts combo bonus rules and points.
         if (score % 6 === 0) {
           score += 2;
           messageEl.textContent = "Combo bonus +2!";
@@ -470,6 +590,7 @@ __MESSAGE_RULE__
         label: "Startup Message",
         note: "Tip shown when the game first loads.",
         value: `      // === EDIT ZONE 3: startup message ===
+      // Changing this line updates the helper text before game start.
       messageEl.textContent = "Tip: hit every 6th click for a bonus!";`,
       },
     ],
@@ -497,6 +618,104 @@ function escapeHtml(text) {
     .replaceAll("'", "&#039;");
 }
 
+function replaceNumberAtIndex(text, targetIndex, newValue) {
+  const regex = /-?\d+(?:\.\d+)?/g;
+  let match;
+  let numberIdx = 0;
+  let out = "";
+  let last = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    out += text.slice(last, match.index);
+    out += numberIdx === targetIndex ? newValue : match[0];
+    last = match.index + match[0].length;
+    numberIdx += 1;
+  }
+  out += text.slice(last);
+  return out;
+}
+
+function replacePlayerName(text, newName) {
+  return text.replace(
+    /(PLAYER_NAME\s*=\s*")[^"]*(")/,
+    `$1${newName.replaceAll('"', "")}$2`
+  );
+}
+
+function replaceStringLiteralAtIndex(text, targetIndex, newValue) {
+  const regex = /"([^"\\]|\\.)*"/g;
+  let match;
+  let stringIndex = 0;
+  let out = "";
+  let last = 0;
+  const safeValue = newValue.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+
+  while ((match = regex.exec(text)) !== null) {
+    out += text.slice(last, match.index);
+    out += stringIndex === targetIndex ? `"${safeValue}"` : match[0];
+    last = match.index + match[0].length;
+    stringIndex += 1;
+  }
+  out += text.slice(last);
+  return out;
+}
+
+function renderEditableNumbers(fieldText, fieldIndex) {
+  const playerNameMatch = fieldText.match(/PLAYER_NAME\s*=\s*"([^"]*)"/);
+  let workingText = fieldText;
+  const playerPlaceholder = "__PLAYER_NAME_EDIT_TOKEN__";
+
+  if (playerNameMatch) {
+    workingText = workingText.replace(playerNameMatch[1], playerPlaceholder);
+  }
+
+  const lines = workingText.split("\n");
+  let numberIndex = 0;
+  let textIndex = 0;
+
+  const html = lines
+    .map((line) => {
+      if (/^\s*(#|\/\/|\/\*|\*)/.test(line)) {
+        return escapeHtml(line);
+      }
+
+      let lineHtml = "";
+      let cursor = 0;
+      const tokenRegex = /"([^"\\]|\\.)*"|-?\d+(?:\.\d+)?/g;
+      let match;
+
+      while ((match = tokenRegex.exec(line)) !== null) {
+        lineHtml += escapeHtml(line.slice(cursor, match.index));
+        const token = match[0];
+        if (token.startsWith('"')) {
+          const rawText = token.slice(1, -1);
+          if (rawText === playerPlaceholder) {
+            lineHtml += `<span class="editable-chip editable-chip-text" contenteditable="true" data-field-index="${fieldIndex}" data-text-kind="player-name">${escapeHtml(
+              playerNameMatch ? playerNameMatch[1] : "Player One"
+            )}</span>`;
+          } else {
+            lineHtml += `<span class="editable-chip editable-chip-text" contenteditable="true" data-field-index="${fieldIndex}" data-text-index="${textIndex}">${escapeHtml(
+              rawText
+            )}</span>`;
+          }
+          textIndex += 1;
+        } else {
+          lineHtml += `<span class="editable-chip editable-chip-number" contenteditable="true" data-field-index="${fieldIndex}" data-number-index="${numberIndex}">${escapeHtml(
+            token
+          )}</span>`;
+          numberIndex += 1;
+        }
+        cursor = match.index + token.length;
+      }
+
+      lineHtml += escapeHtml(line.slice(cursor));
+      return lineHtml;
+    })
+    .join("\n");
+
+  return html;
+}
+
 function compileCode(lang) {
   const config = languageConfigs[lang];
   let built = config.template;
@@ -511,10 +730,13 @@ function renderNotes(lang) {
   const mode = state[lang].mode;
   const intro =
     mode === "locked"
-      ? "Locked mode: edit only yellow highlighted code parts in the full script below."
+      ? "Locked mode: edit only yellow numbers in the full script below."
       : "Free mode: edit the whole script. Keep EDIT ZONE comments as guideposts.";
   const bullets = config.fields
-    .map((field, idx) => `<li><strong>Zone ${idx + 1}:</strong> ${field.note}</li>`)
+    .map(
+      (field, idx) =>
+        `<li><strong>Zone ${idx + 1} (${field.label}):</strong> ${field.note}</li>`
+    )
     .join("");
   config.notes.innerHTML = `<h3>Where to edit</h3><p>${intro}</p><ul>${bullets}</ul>`;
 }
@@ -530,22 +752,50 @@ function renderLockedCode(lang) {
       return;
     }
     parts.push(escapeHtml(config.template.slice(cursor, tokenIndex)));
-    parts.push(
-      `<span class="editable-chip" contenteditable="true" data-field-index="${idx}">${escapeHtml(
-        field.value
-      )}</span>`
-    );
+    parts.push(renderEditableNumbers(field.value, idx));
     cursor = tokenIndex + field.token.length;
   });
 
   parts.push(escapeHtml(config.template.slice(cursor)));
   config.lockedEditor.innerHTML = `<div class="locked-code-view">${parts.join("")}</div>`;
 
-  config.lockedEditor.querySelectorAll(".editable-chip").forEach((chip) => {
+  config.lockedEditor.querySelectorAll(".editable-chip-number").forEach((chip) => {
     chip.addEventListener("input", () => {
-      const idx = Number(chip.dataset.fieldIndex);
-      const normalized = chip.innerText.replace(/\u00a0/g, " ");
-      config.fields[idx].value = normalized;
+      const fieldIndex = Number(chip.dataset.fieldIndex);
+      const numberIndex = Number(chip.dataset.numberIndex);
+      const cleaned = chip.innerText.replace(/[^0-9.\-]/g, "");
+      const normalized = cleaned === "" ? "0" : cleaned;
+      chip.textContent = normalized;
+      config.fields[fieldIndex].value = replaceNumberAtIndex(
+        config.fields[fieldIndex].value,
+        numberIndex,
+        normalized
+      );
+      if (!state[lang].freeEdited) {
+        config.freeEditor.value = compileCode(lang);
+      }
+    });
+  });
+
+  config.lockedEditor.querySelectorAll(".editable-chip-text").forEach((chip) => {
+    chip.addEventListener("input", () => {
+      const fieldIndex = Number(chip.dataset.fieldIndex);
+      const kind = chip.dataset.textKind;
+      const normalized = chip.innerText.replace(/\n/g, " ");
+      const clean = normalized.replaceAll('"', "");
+      if (kind === "player-name") {
+        config.fields[fieldIndex].value = replacePlayerName(
+          config.fields[fieldIndex].value,
+          clean.trim() || "Player One"
+        );
+      } else {
+        const textIndex = Number(chip.dataset.textIndex);
+        config.fields[fieldIndex].value = replaceStringLiteralAtIndex(
+          config.fields[fieldIndex].value,
+          textIndex,
+          clean
+        );
+      }
       if (!state[lang].freeEdited) {
         config.freeEditor.value = compileCode(lang);
       }
@@ -639,8 +889,17 @@ languageConfigs.python.runButton.addEventListener("click", async () => {
     if (queue.length > 0) {
       return queue.shift();
     }
-    const typed = window.prompt(String(promptText || "Enter input value"), "");
-    return typed === null ? "" : typed;
+    const typed = window.prompt(
+      `${
+        promptText || "What do you do next?"
+      }\nType Sprint to sprint (faster move, costs 1 health), Scout to move safely, or Rest to heal 1.`,
+      ""
+    );
+    if (typed === null) {
+      return "__STOP__";
+    }
+    const clean = typed.trim();
+    return clean || "__STOP__";
   };
 
   pythonStatus.textContent = "Running Python...";
@@ -665,7 +924,6 @@ languageConfigs.python.runButton.addEventListener("click", async () => {
 
     await pyodide.runPythonAsync(`
 import builtins
-from js import __next_input
 def _runtime_input(prompt=""):
     return __next_input(prompt)
 builtins.input = _runtime_input
@@ -681,6 +939,26 @@ builtins.input = _runtime_input
     pythonStatus.textContent = "Python is ready.";
   }
 });
+
+pythonStdinInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    languageConfigs.python.runButton.click();
+  }
+});
+
+function autoSizeFrame(frame, minHeight = 520) {
+  frame.onload = () => {
+    try {
+      const doc = frame.contentDocument;
+      const bodyHeight = doc?.body?.scrollHeight || minHeight;
+      const htmlHeight = doc?.documentElement?.scrollHeight || minHeight;
+      frame.style.height = `${Math.max(minHeight, bodyHeight, htmlHeight)}px`;
+    } catch {
+      frame.style.height = `${minHeight}px`;
+    }
+  };
+}
 
 languageConfigs.javascript.runButton.addEventListener("click", () => {
   const outputEl = languageConfigs.javascript.output;
@@ -734,16 +1012,18 @@ ${safeCode}
         const root = document.getElementById("game-root");
         root.innerHTML = "<pre style='color:#b20f0f;white-space:pre-wrap;'>Runtime error: " + error.message + "</pre>";
       }
-    <\\/script>
+    </script>
   </body>
 </html>`;
 
+  autoSizeFrame(outputFrame, 520);
   outputFrame.srcdoc = srcDoc;
   outputEl.textContent = "JavaScript UI rendered below.";
 });
 
 languageConfigs.html.runButton.addEventListener("click", () => {
   const code = currentCode("html");
+  autoSizeFrame(languageConfigs.html.output, 520);
   languageConfigs.html.output.srcdoc = code;
 });
 
