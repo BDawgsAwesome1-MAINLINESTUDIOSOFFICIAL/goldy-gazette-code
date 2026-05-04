@@ -73,6 +73,7 @@ def run_game():
     player = create_player()
     game_map = build_map()
     x, y = MAP_WIDTH // 2, MAP_HEIGHT // 2
+    stopped_early = False
 
     narrate(
         "Welcome",
@@ -84,7 +85,8 @@ def run_game():
             break
         action = input("What do you do next: scout, sprint, or rest? ").strip().lower()
         if action in ("", "__stop__"):
-            print("No action entered. Add choices in the input box to continue.")
+            print("No action entered. Add more choices, then run again to continue.")
+            stopped_early = True
             break
         if action == "scout":
             move_x = random.choice([-1, 0, 1])
@@ -116,11 +118,18 @@ def run_game():
             f"steps: {player['steps']}"
         )
 
-    narrate(
-        "Game Over",
-        f"{player['name']} finished with {player['coins']} coins and "
-        f"{player['health']} health."
-    )
+    if stopped_early:
+        narrate(
+            "Paused",
+            f"{player['name']} paused with {player['coins']} coins and "
+            f"{player['health']} health."
+        )
+    else:
+        narrate(
+            "Game Over",
+            f"{player['name']} finished with {player['coins']} coins and "
+            f"{player['health']} health."
+        )
 
 __ENDING_BLOCK__
 
@@ -882,6 +891,12 @@ languageConfigs.python.runButton.addEventListener("click", async () => {
 
   if (!pythonReady) {
     outputEl.textContent = "Python is still loading. Please wait.";
+    return;
+  }
+
+  if (!rawInput) {
+    outputEl.textContent =
+      "oops! you forgot to type something. Type sprint, scout, or rest to start!";
     return;
   }
 
