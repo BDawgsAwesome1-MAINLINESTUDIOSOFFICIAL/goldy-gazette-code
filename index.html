@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Goldy Gazette Code</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"
+    ></script>
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <img
+            src="file:///Users/brennankelly/.cursor/projects/Users-brennankelly-Goldy-Gazette-Coder/assets/image-b4ea5068-3737-4898-8a56-2a43234f46e2.png"
+            alt="Goldy Gazette mascot"
+            class="brand-logo"
+          />
+          <div>
+            <h1>Goldy Gazette Code</h1>
+            <p>Build fun mini games in Python, JavaScript, and HTML.</p>
+          </div>
+        </div>
+      </header>
+
+      <nav class="tabs" aria-label="Coding tabs">
+        <button class="tab-button active" data-tab="python">Easy (Python)</button>
+        <button class="tab-button" data-tab="javascript">Medium (JavaScript)</button>
+        <button class="tab-button" data-tab="html">Hard (HTML)</button>
+      </nav>
+
+      <section class="panel active" id="python-panel">
+        <div class="panel-head">
+          <h2>Python: Adventure Coin Quest</h2>
+          <div class="mode-toggle" role="group" aria-label="Python editor mode">
+            <button class="mode-button active" data-lang="python" data-mode="locked">
+              Locked
+            </button>
+            <button class="mode-button" data-lang="python" data-mode="free">Free</button>
+          </div>
+        </div>
+        <div class="notes-box" id="python-notes"></div>
+        <div class="locked-editor active" id="python-locked"></div>
+        <textarea class="full-editor" id="python-free"></textarea>
+        <div class="actions-row">
+          <button id="run-python">Run Python</button>
+          <input
+            id="python-stdin"
+            class="stdin-input"
+            type="text"
+            placeholder="Optional input() values, separated by |"
+          />
+          <span class="status-text" id="python-status">Loading Python engine...</span>
+        </div>
+        <pre id="python-output" class="output-box"></pre>
+      </section>
+
+      <section class="panel" id="javascript-panel">
+        <div class="panel-head">
+          <h2>JavaScript: Space Dodger Score Rush</h2>
+          <div class="mode-toggle" role="group" aria-label="JavaScript editor mode">
+            <button class="mode-button active" data-lang="javascript" data-mode="locked">
+              Locked
+            </button>
+            <button class="mode-button" data-lang="javascript" data-mode="free">Free</button>
+          </div>
+        </div>
+        <div class="notes-box" id="javascript-notes"></div>
+        <div class="locked-editor active" id="javascript-locked"></div>
+        <textarea class="full-editor" id="javascript-free"></textarea>
+        <div class="actions-row">
+          <button id="run-javascript">Run JavaScript</button>
+        </div>
+        <iframe
+          id="javascript-frame"
+          title="JavaScript game output"
+          class="html-frame"
+        ></iframe>
+        <pre id="javascript-output" class="output-box"></pre>
+      </section>
+
+      <section class="panel" id="html-panel">
+        <div class="panel-head">
+          <h2>HTML: Click Carnival</h2>
+          <div class="mode-toggle" role="group" aria-label="HTML editor mode">
+            <button class="mode-button active" data-lang="html" data-mode="locked">
+              Locked
+            </button>
+            <button class="mode-button" data-lang="html" data-mode="free">Free</button>
+          </div>
+        </div>
+        <div class="notes-box" id="html-notes"></div>
+        <div class="locked-editor active" id="html-locked"></div>
+        <textarea class="full-editor" id="html-free"></textarea>
+        <div class="actions-row">
+          <button id="run-html">Run HTML</button>
+        </div>
+        <iframe id="html-output" title="Rendered HTML output" class="html-frame"></iframe>
+      </section>
+    </main>
+  </body>
+</html>
